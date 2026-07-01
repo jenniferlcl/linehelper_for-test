@@ -1,0 +1,18 @@
+{
+  "name": "line-00402a-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "test": "node scripts/self-test.mjs",
+    "lint": "node --check api/webhook.js && node --check lib/*.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^46.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
