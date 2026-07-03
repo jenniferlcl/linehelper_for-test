@@ -18,6 +18,10 @@ function wantsCancel(text) {
   return /^(取消|不要了|先不用|cancel)$/i.test(text.trim());
 }
 
+function isThanks(text) {
+  return /^(謝謝|感謝|thanks|thank you|ok|好的|了解|收到|辛苦了)[！!。.\s]*$/i.test(text.trim());
+}
+
 function firstPrompt() {
   return "好的，我先幫您登記00402A主動ETF說明會。\n請回覆您的姓名。若要中止，請輸入「取消」。";
 }
@@ -77,34 +81,24 @@ async function handleRegistrationMessage({ text, userId, source }) {
 }
 
 async function handleQuestion({ text, userId, source }) {
-  try {
-    const result = await answerQuestion(text);
-    if (!result.answered) {
-      await saveRecord("unanswered_question", {
-        userId,
-        source,
-        question: text,
-        reason: result.reason
-      });
-    } else {
-      await saveRecord("answered_question", {
-        userId,
-        source,
-        question: text,
-        answer: result.answer,
-        reason: result.reason
-      });
-    }
-    return result.answer;
-  } catch (error) {
+  const result = await answerQuestion(text);
+  if (!result.answered) {
     await saveRecord("unanswered_question", {
       userId,
       source,
       question: text,
-      reason: `system_error: ${error.message}`
+      reason: result.reason
     });
-    return "系統暫時無法確認這題資料，我已先幫您留下問題，會轉給後台客服處理。";
+  } else {
+    await saveRecord("answered_question", {
+      userId,
+      source,
+      question: text,
+      answer: result.answer,
+      reason: result.reason
+    });
   }
+  return result.answer;
 }
 
 async function handleTextEvent(event) {
@@ -117,6 +111,10 @@ async function handleTextEvent(event) {
   const state = await getState(userId);
   if (state?.flow === "registration" || wantsRegistration(text)) {
     return handleRegistrationMessage({ text, userId, source });
+  }
+
+  if (isThanks(text)) {
+    return "不客氣。如需報名說明會或詢問00402A相關問題，可以直接留言給我。";
   }
 
   if (/^(help|幫助|使用說明)$/i.test(text)) {
