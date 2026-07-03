@@ -3,19 +3,24 @@ import { compactKnowledge, keywordSearch, sourceUrl } from "./knowledge.js";
 const fallbackApology =
   "這題活動頁沒有明確資料，我已先幫您留下問題，會轉給後台客服處理。";
 
+function keywordFallback(question, reason = "keyword_fallback") {
+  const keywordHits = keywordSearch(question);
+  if (keywordHits.length === 0) {
+    return { answered: false, answer: fallbackApology, reason };
+  }
+
+  return {
+    answered: true,
+    answer: `${keywordHits.map((hit) => hit.text).join("\n\n")}\n\n資料來源：${sourceUrl}`,
+    reason
+  };
+}
+
 export async function answerQuestion(question) {
   const apiKey = process.env.OPENAI_API_KEY;
-  const keywordHits = keywordSearch(question);
 
   if (!apiKey) {
-    if (keywordHits.length === 0) {
-      return { answered: false, answer: fallbackApology, reason: "no_openai_no_keyword_hit" };
-    }
-    return {
-      answered: true,
-      answer: `${keywordHits.map((hit) => hit.text).join("\n\n")}\n\n資料來源：${sourceUrl}`,
-      reason: "keyword_fallback"
-    };
+    return keywordFallback(question, "no_openai_keyword_fallback");
   }
 
   const prompt = [
@@ -30,40 +35,46 @@ export async function answerQuestion(question) {
     }
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-      messages: prompt,
-      temperature: 0.1,
-      response_format: { type: "json_object" }
-    })
-  });
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+        messages: prompt,
+        temperature: 0.1,
+        response_format: { type: "json_object" }
+      })
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`OpenAI failed: ${response.status} ${text}`);
-  }
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`OpenAI failed: ${response.status} ${text}`);
+      return keywordFallback(question, `openai_error_${response.status}_keyword_fallback`);
+    }
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
 
-  if (!parsed.answered) {
+    if (!parsed.answered) {
+      return {
+        answered: false,
+        answer: fallbackApology,
+        reason: parsed.reason || "insufficient_source"
+      };
+    }
+
     return {
-      answered: false,
-      answer: fallbackApology,
-      reason: parsed.reason || "insufficient_source"
+      answered: true,
+      answer: `${parsed.answer}\n\n資料來源：${sourceUrl}`,
+      reason: parsed.reason || "source_answered"
     };
+  } catch (error) {
+    console.error("answerQuestion failed", error);
+    return keywordFallback(question, "openai_exception_keyword_fallback");
   }
-
-  return {
-    answered: true,
-    answer: `${parsed.answer}\n\n資料來源：${sourceUrl}`,
-    reason: parsed.reason || "source_answered"
-  };
 }

@@ -66,8 +66,8 @@ export function keywordSearch(question) {
   const normalized = question.toLowerCase();
   const routeTerms = [
     { terms: ["追蹤", "指數", "主動式", "複製", "模擬"], title: "主動式ETF特性" },
-    { terms: ["哪裡買", "哪裡可以買", "怎麼買", "購買", "申購", "交易", "券商", "銷售"], title: "購買方式" },
-    { terms: ["銷售機構", "通路", "銀行", "證券商", "line bank"], title: "銷售機構" },
+    { terms: ["哪裡買", "哪裡可以買", "怎麼買", "購買", "申購", "交易", "券商", "證券商", "銷售"], title: "購買方式" },
+    { terms: ["銷售機構", "通路", "銀行", "line bank"], title: "銷售機構" },
     { terms: ["風險", "rr4", "風險等級", "風險報酬"], title: "風險等級與主要風險" },
     { terms: ["配息", "收益平準金", "保證收益", "收益"], title: "配息與收益平準金" },
     { terms: ["客服", "電話", "地址", "聯絡"], title: "客服資訊" },
@@ -75,6 +75,7 @@ export function keywordSearch(question) {
     { terms: ["投資", "科技", "美國", "領航產業"], title: "投資方向" },
     { terms: ["上市", "掛牌", "淨值", "估計淨值"], title: "上市與淨值提醒" }
   ];
+
   const routed = routeTerms
     .filter((route) => route.terms.some((term) => normalized.includes(term.toLowerCase())))
     .map((route) => knowledge.find((item) => item.title === route.title))
