@@ -1,7 +1,9 @@
 import { appendFile, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-const localFile = "local-records.jsonl";
+const localFile = process.env.VERCEL ? join(tmpdir(), "line-00402a-records.jsonl") : "local-records.jsonl";
 const memoryState = new Map();
 
 function hasKv() {
@@ -60,11 +62,15 @@ export async function saveRecord(type, payload) {
     ...payload
   };
 
-  if (hasKv()) {
-    await kvCommand(["LPUSH", "records", JSON.stringify(record)]);
-    await kvCommand(["LTRIM", "records", 0, 999]);
-  } else {
-    await appendFile(localFile, `${JSON.stringify(record)}\n`, "utf8");
+  try {
+    if (hasKv()) {
+      await kvCommand(["LPUSH", "records", JSON.stringify(record)]);
+      await kvCommand(["LTRIM", "records", 0, 999]);
+    } else {
+      await appendFile(localFile, `${JSON.stringify(record)}\n`, "utf8");
+    }
+  } catch (error) {
+    console.error("saveRecord failed", error);
   }
 
   return record;
